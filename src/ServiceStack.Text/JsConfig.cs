@@ -29,6 +29,7 @@ namespace ServiceStack.Text
         }
 
         public static JsConfigScope With(
+            bool? forceLateBinding=null,
             bool? convertObjectTypesIntoStringDictionary = null,
             bool? tryToParsePrimitiveTypeValues = null,
 			bool? tryToParseNumericType = null,
@@ -55,6 +56,7 @@ namespace ServiceStack.Text
             string[] excludePropertyReferences = null)
         {
             return new JsConfigScope {
+                ForceLateBinding = forceLateBinding ?? sForceLateBinding,
                 ConvertObjectTypesIntoStringDictionary = convertObjectTypesIntoStringDictionary ?? sConvertObjectTypesIntoStringDictionary,
                 TryToParsePrimitiveTypeValues = tryToParsePrimitiveTypeValues ?? sTryToParsePrimitiveTypeValues,
                 TryToParseNumericType = tryToParseNumericType ?? sTryToParseNumericType,
@@ -80,6 +82,21 @@ namespace ServiceStack.Text
                 ModelFactory = modelFactory ?? ModelFactory,
                 ExcludePropertyReferences = excludePropertyReferences ?? sExcludePropertyReferences
             };
+        }
+
+        private static bool? sForceLateBinding;
+        public static bool ForceLateBinding
+        {
+            get
+            {
+                return (JsConfigScope.Current != null ? JsConfigScope.Current.ForceLateBinding : null)
+                    ?? sForceLateBinding
+                    ?? false;
+            }
+            set
+            {
+                if (!sForceLateBinding.HasValue) sForceLateBinding = value;
+            }
         }
 
         private static bool? sConvertObjectTypesIntoStringDictionary;
@@ -847,6 +864,11 @@ namespace ServiceStack.Text
         /// Never emit type info for this type
         /// </summary>
         public static bool ExcludeTypeInfo = false;
+
+        /// <summary>
+        /// Force late binding for this type so that the full hierarchy is included
+        /// </summary>
+        public static bool ForceLateBinding = false;
 
         /// <summary>
         /// <see langword="true"/> if the <see cref="ITypeSerializer"/> is configured

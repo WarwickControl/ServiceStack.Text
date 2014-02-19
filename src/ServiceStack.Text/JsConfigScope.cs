@@ -54,7 +54,7 @@ namespace ServiceStack.Text
 #endif
             }
         }
-
+        public bool? ForceLateBinding { get; set; }
         public bool? ConvertObjectTypesIntoStringDictionary { get; set; }
         public bool? TryToParsePrimitiveTypeValues { get; set; }
 		public bool? TryToParseNumericType { get; set; }

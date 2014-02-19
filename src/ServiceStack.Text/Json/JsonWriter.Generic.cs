@@ -170,7 +170,7 @@ namespace ServiceStack.Text.Json
                 IsNumeric = isNumeric
 			};
 
-            CacheFn = typeof(T) == typeof(object) 
+            CacheFn = (JsConfig.ForceLateBinding || JsConfig<T>.ForceLateBinding || typeof(T) == typeof(object))
                 ? JsonWriter.WriteLateBoundObject 
                 : JsonWriter.Instance.GetWriteFn<T>();
 		}
