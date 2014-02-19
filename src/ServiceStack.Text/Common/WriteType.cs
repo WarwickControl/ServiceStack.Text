@@ -55,7 +55,7 @@ namespace ServiceStack.Text.Common
                 WriteTypeInfo = TypeInfoWriter;
             }
 
-            if (typeof(T).IsAbstract())
+            if (typeof(T).IsAbstract() || JsConfig<T>.TreatAsAbstract)
             {
                 WriteTypeInfo = TypeInfoWriter;
                 if (!JsConfig.PreferInterfaces || !typeof(T).IsInterface())
@@ -314,6 +314,15 @@ namespace ServiceStack.Text.Common
 
         public static void WriteProperties(TextWriter writer, object value)
         {
+            var valueType = value.GetType();
+            if(
+                (JsConfig.FullTypeHierarchy || JsConfig<T>.FullTypeHierarchy) && 
+                (valueType != typeof(T)) && typeof(T).IsAssignableFrom(valueType))
+            {
+                WriteAbstractProperties(writer, value);
+                return;
+            }
+
             if (typeof(TSerializer) == typeof(JsonTypeSerializer) && JsState.WritingKeyCount > 0)
                 writer.Write(JsWriter.QuoteChar);
 

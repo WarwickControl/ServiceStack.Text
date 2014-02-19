@@ -29,7 +29,7 @@ namespace ServiceStack.Text
         }
 
         public static JsConfigScope With(
-            bool? forceLateBinding=null,
+            bool? fullTypeHierarchy=null,
             bool? convertObjectTypesIntoStringDictionary = null,
             bool? tryToParsePrimitiveTypeValues = null,
 			bool? tryToParseNumericType = null,
@@ -56,7 +56,7 @@ namespace ServiceStack.Text
             string[] excludePropertyReferences = null)
         {
             return new JsConfigScope {
-                ForceLateBinding = forceLateBinding ?? sForceLateBinding,
+                FullTypeHierarchy = fullTypeHierarchy ?? sFullTypeHierarchy,
                 ConvertObjectTypesIntoStringDictionary = convertObjectTypesIntoStringDictionary ?? sConvertObjectTypesIntoStringDictionary,
                 TryToParsePrimitiveTypeValues = tryToParsePrimitiveTypeValues ?? sTryToParsePrimitiveTypeValues,
                 TryToParseNumericType = tryToParseNumericType ?? sTryToParseNumericType,
@@ -84,18 +84,18 @@ namespace ServiceStack.Text
             };
         }
 
-        private static bool? sForceLateBinding;
-        public static bool ForceLateBinding
+        private static bool? sFullTypeHierarchy;
+        public static bool FullTypeHierarchy
         {
             get
             {
-                return (JsConfigScope.Current != null ? JsConfigScope.Current.ForceLateBinding : null)
-                    ?? sForceLateBinding
+                return (JsConfigScope.Current != null ? JsConfigScope.Current.FullTypeHierarchy : null)
+                    ?? sFullTypeHierarchy
                     ?? false;
             }
             set
             {
-                if (!sForceLateBinding.HasValue) sForceLateBinding = value;
+                if (!sFullTypeHierarchy.HasValue) sFullTypeHierarchy = value;
             }
         }
 
@@ -868,7 +868,12 @@ namespace ServiceStack.Text
         /// <summary>
         /// Force late binding for this type so that the full hierarchy is included
         /// </summary>
-        public static bool ForceLateBinding = false;
+        public static bool TreatAsAbstract = false;
+
+        /// <summary>
+        /// Always include the full type hierarchy for this type
+        /// </summary>
+        public static bool FullTypeHierarchy = false;
 
         /// <summary>
         /// <see langword="true"/> if the <see cref="ITypeSerializer"/> is configured
