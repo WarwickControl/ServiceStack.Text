@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Diagnostics;
+using ServiceStack.Text.Common;
 
 namespace ServiceStack.Text
 {
@@ -59,6 +60,7 @@ namespace ServiceStack.Text
         public bool? TryToParsePrimitiveTypeValues { get; set; }
 		public bool? TryToParseNumericType { get; set; }
         public bool? IncludeNullValues { get; set; }
+        public bool? IncludeNullValuesInDictionaries { get; set; }
         public bool? TreatEnumAsInteger { get; set; }
         public bool? ExcludeTypeInfo { get; set; }
         public bool? IncludeTypeInfo { get; set; }
@@ -81,5 +83,6 @@ namespace ServiceStack.Text
         public int? MaxDepth { get; set; }
         public EmptyCtorFactoryDelegate ModelFactory { get; set; }
         public string[] ExcludePropertyReferences { get; set; }
+        public DeserializationErrorDelegate OnDeserializationError { get; set; }
     }
 }

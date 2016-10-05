@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using System.Collections.Generic;
+using NUnit.Framework;
 
 namespace ServiceStack.Text.Tests.JsonTests
 {
@@ -25,6 +26,27 @@ namespace ServiceStack.Text.Tests.JsonTests
             Assert.That(JsonObject.Parse("{ \n\t  \n\r}"), Is.Empty);
         }
 
+        [Test]
+        public void Can_Serialize_numbers()
+        {
+            string notNumber = "{\"field\":\"00001\"}";
+            Assert.AreEqual(notNumber, JsonObject.Parse(notNumber).ToJson<JsonObject>());
+
+            string num1 = "{\"field\":0}";
+            Assert.AreEqual(num1, JsonObject.Parse(num1).ToJson<JsonObject>());
+
+            string num2 = "{\"field\":0.5}";
+            Assert.AreEqual(num2, JsonObject.Parse(num2).ToJson<JsonObject>());
+
+            string num3 = "{\"field\":.5}";
+            Assert.AreEqual(num3, JsonObject.Parse(num3).ToJson<JsonObject>());
+
+            string num4 = "{\"field\":12312}";
+            Assert.AreEqual(num4, JsonObject.Parse(num4).ToJson<JsonObject>());
+
+            string num5 = "{\"field\":12312.1231}";
+            Assert.AreEqual(num5, JsonObject.Parse(num5).ToJson<JsonObject>());
+        }
 
         public class Jackalope
         {
@@ -68,6 +90,63 @@ namespace ServiceStack.Text.Tests.JsonTests
             Content = new ElementContentDto { ElementId = "image_1", Content = "image url goes here" }.ToJson(),
             Action = new ElementActionDto { ElementId = "image_1", Action = "action goes here" }.ToJson()
         };
+
+        readonly SimpleObj simple = new SimpleObj
+        {
+            value1 = "Foo",
+            value2 = "Bar"
+        };
+
+        [Test]
+        public void Can_Deserialize_JsonValue()
+        {
+            var json = simple.ToJson();
+            var jsonValue = new JsonValue(json);
+
+            var fromJson = jsonValue.As<SimpleObj>();
+
+            Assert.That(fromJson.value1, Is.EqualTo(simple.value1));
+            Assert.That(fromJson.value2, Is.EqualTo(simple.value2));
+        }
+
+        [Test]
+        public void Can_Serialize_JsonValue_Multiple_Times()
+        {
+            var json = simple.ToJson();
+            var jsonValue = new JsonValue(json);
+            
+            var jsonAfter = jsonValue.ToJson();
+
+            Assert.That(jsonAfter, Is.EqualTo(json));
+        }
+
+        [Test]
+        public void Can_Deserialize_JsonValue_After_Multiple_Serialize()
+        {
+            var json = simple.ToJson();
+            var jsonValue = new JsonValue(json);
+
+            jsonValue = new JsonValue(jsonValue.ToJson());
+
+            var fromJson = jsonValue.As<SimpleObj>();
+
+            Assert.That(fromJson.value1, Is.EqualTo(simple.value1));
+            Assert.That(fromJson.value2, Is.EqualTo(simple.value2));
+        }
+
+        [Test]
+        public void Can_Deserialize_JsonValue_After_Multiple_Serialize_2()
+        {
+            var json = simple.ToJson();
+            var jsonValue = new JsonValue(json);
+
+            json = jsonValue.ToJson();
+
+            var fromJson = json.FromJson<SimpleObj>();
+
+            Assert.That(fromJson.value1, Is.EqualTo(simple.value1));
+            Assert.That(fromJson.value2, Is.EqualTo(simple.value2));
+        }
 
         [Test]
         public void Can_Serialize_TypedContainerDto()
@@ -147,7 +226,103 @@ namespace ServiceStack.Text.Tests.JsonTests
             Assert.That(src.Action.ElementId, Is.EqualTo(fromSrc.Action.ElementId));
             Assert.That(dst.Action, Is.EqualTo(fromDst.Action));
         }
-        
+
+        [Test]
+        public void Can_Serialize_NestedJsonValueDto()
+        {
+            var scaffold = new List<JsonValue> { new JsonValue(text.ToJson()), new JsonValue(text.ToJson()) };
+
+            var container = new NestedJsonValueDto
+            {
+                ElementId = "container_1",
+                ElementType = "container",
+                // Raw nesting - won't be escaped
+                Content = new ElementContentDto { ElementId = "container_1", Content = "container goes here" },
+                Action = new ElementActionDto { ElementId = "container_1", Action = "action goes here" },
+                Scaffolding = scaffold
+            };
+
+            var json = container.ToJson();
+
+            var fromJson = json.FromJson<NestedJsonValueDto>();
+
+            foreach (var jsonValue in fromJson.Scaffolding)
+            {
+                var fromJsonValue = jsonValue.As<TextElementDto>();
+                Assert.That(fromJsonValue.ElementId, Is.EqualTo(text.ElementId));
+                Assert.That(fromJsonValue.Action.ElementId, Is.EqualTo(text.Action.ElementId));
+                Assert.That(fromJsonValue.Content.ElementId, Is.EqualTo(text.Content.ElementId));
+            }
+        }
+
+        [Test]
+        public void NullItemInCollectionShouldBeHandledGracefullyEvenIfShouldSerializeMethodExists()
+        {
+            var store = new ParentDto();
+            store.ChildDtosWithShouldSerialize = new List<ChildDtoWithShouldSerialize>() { new ChildDtoWithShouldSerialize() { Data = "xx" }, null };
+
+            var jj = JsonSerializer.SerializeToString(store);
+            Assert.AreEqual(jj, "{\"ChildDtosWithShouldSerialize\":[{\"Data\":\"xx\"},{}]}");
+        }
+
+        [Test]
+        public void NullItemInCollectionShouldBeHandledGracefullyEvenIfShouldSerializeForPropertyNameMethodExists()
+        {
+            var store = new ParentDto();
+            store.ChildDtosWithShouldSerializeProperty = new List<ChildDtoWithShouldSerializeForProperty>() { new ChildDtoWithShouldSerializeForProperty() { Data = "xx" }, null };
+
+            var jj = JsonSerializer.SerializeToString(store);
+            Assert.AreEqual(jj, "{\"ChildDtosWithShouldSerializeProperty\":[{\"Data\":\"xx\"},{}]}");
+        }
+
+        public class ParentDto
+        {
+            public IList<ChildDtoWithShouldSerialize> ChildDtosWithShouldSerialize { get; set; }
+            public IList<ChildDtoWithShouldSerializeForProperty> ChildDtosWithShouldSerializeProperty { get; set; }
+        }
+
+        public class ChildDtoWithShouldSerialize
+        {
+            protected virtual bool? ShouldSerialize(string fieldName)
+            {
+                return true;
+            }
+
+            public string Data { get; set; }
+        }
+
+        public class ChildDtoWithShouldSerializeForProperty
+        {
+            public virtual bool ShouldSerializeData()
+            {
+                return true;
+            }
+
+            public string Data { get; set; }
+        }  
+
+        public class SimpleObj
+        {
+            public string value1 { get; set; }
+            public string value2 { get; set; }
+        }
+
+        public class NestedSimpleJsonValue
+        {
+            public JsonValue Simple { get; set; }
+        }
+
+        public class NestedJsonValueDto
+        {
+            public string ElementType { get; set; }
+            public string ElementId { get; set; }
+
+            public ElementContentDto Content { get; set; }
+            public ElementActionDto Action { get; set; }
+
+            public List<JsonValue> Scaffolding { get; set; }
+        }
+
         public class TypedContainerDto
         {
             public TextElementDto Source { get; set; }

@@ -28,6 +28,11 @@ namespace ServiceStack.Text.Json
             get { return JsConfig.IncludeNullValues; }
         }
 
+        public bool IncludeNullValuesInDictionaries
+        {
+            get { return JsConfig.IncludeNullValuesInDictionaries; }
+        }
+
         public string TypeAttrInObject
         {
             get { return JsConfig.JsonTypeAttrInObject; }
@@ -42,10 +47,10 @@ namespace ServiceStack.Text.Json
 
         static JsonTypeSerializer()
         {
-            WhiteSpaceFlags[' '] = true;
-            WhiteSpaceFlags['\t'] = true;
-            WhiteSpaceFlags['\r'] = true;
-            WhiteSpaceFlags['\n'] = true;
+            foreach (var c in JsonUtils.WhiteSpaceChars)
+            {
+                WhiteSpaceFlags[c] = true;
+            }
         }
 
         public WriteObjectDelegate GetWriteFn<T>()
@@ -310,6 +315,14 @@ namespace ServiceStack.Text.Json
 #if !MONOTOUCH && !SILVERLIGHT && !XBOX  && !ANDROID
             WriteRawString(writer, Convert.ToBase64String(((System.Data.Linq.Binary)linqBinaryValue).ToArray()));
 #endif
+        }
+
+        public void WriteJsonValue(TextWriter writer, object value)
+        {
+            if (value == null)
+                writer.Write(JsonUtils.Null);
+            else
+                writer.Write(value.ToString());
         }
 
         public ParseStringDelegate GetParseFn<T>()

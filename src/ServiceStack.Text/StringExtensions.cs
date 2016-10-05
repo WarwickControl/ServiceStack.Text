@@ -121,11 +121,16 @@ namespace ServiceStack.Text
 
         public static string EncodeJsv(this string value)
         {
+            return EncodeJsv(value, false);
+        }
+
+        public static string EncodeJsv(this string value, bool includeEmpty)
+        {
             if (JsState.QueryStringMode)
             {
                 return UrlEncode(value);
             }
-            return String.IsNullOrEmpty(value) || !JsWriter.HasAnyEscapeChars(value)
+            return (String.IsNullOrEmpty(value) || !JsWriter.HasAnyEscapeChars(value)) && (!includeEmpty || value != String.Empty)
                 ? value
                 : String.Concat
                     (
@@ -703,11 +708,9 @@ namespace ServiceStack.Text
             return sb.ToString();
         }
 
-        public static string SafeSubstring(this string value, int length)
+        public static string SafeSubstring(this string value, int startIndex)
         {
-            return String.IsNullOrEmpty(value)
-                ? String.Empty
-                : value.Substring(Math.Min(length, value.Length));
+           return SafeSubstring(value, startIndex, value.Length);
         }
 
         public static string SafeSubstring(this string value, int startIndex, int length)

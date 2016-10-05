@@ -159,6 +159,21 @@ namespace ServiceStack.Text
             }
         }
 
+        private static bool? sIncludeNullValuesInDictionaries;
+        public static bool IncludeNullValuesInDictionaries
+        {
+            get
+            {
+                return (JsConfigScope.Current != null ? JsConfigScope.Current.IncludeNullValuesInDictionaries : null)
+                    ?? sIncludeNullValuesInDictionaries
+                    ?? false;
+            }
+            set
+            {
+                if (!sIncludeNullValuesInDictionaries.HasValue) sIncludeNullValuesInDictionaries = value;
+            }
+        }
+
         private static bool? sTreatEnumAsInteger;
         public static bool TreatEnumAsInteger
         {
@@ -404,6 +419,27 @@ namespace ServiceStack.Text
         }
 
         /// <summary>
+        /// Gets or sets a value indicating if the framework should call an error handler when
+        /// an exception happens during the deserialization.
+        /// </summary>
+        /// <remarks>Parameters have following meaning in order: deserialized entity, property name, parsed value, property type, caught exception.</remarks>
+        private static DeserializationErrorDelegate sOnDeserializationError;
+        public static DeserializationErrorDelegate OnDeserializationError
+        {
+            get
+            {
+                return (JsConfigScope.Current != null ? JsConfigScope.Current.OnDeserializationError : null)
+                    ?? sOnDeserializationError;                
+            }
+            set { sOnDeserializationError = value; }
+        }
+
+        /// <summary>
+        /// Gets whether a deserialization error handler is configured or not.
+        /// </summary>
+        public static bool HasOnDeserializationErrorHandler { get { return OnDeserializationError != null; } }
+
+        /// <summary>
         /// Gets or sets a value indicating if the framework should always convert <see cref="DateTime"/> to UTC format instead of local time. 
         /// </summary>
         private static bool? sAlwaysUseUtc;
@@ -587,6 +623,7 @@ namespace ServiceStack.Text
 		    sTryToParseNumericType = null;
             sConvertObjectTypesIntoStringDictionary = null;
             sIncludeNullValues = null;
+            sIncludeNullValuesInDictionaries = null;
             sExcludeTypeInfo = null;
             sEmitCamelCaseNames = null;
             sEmitLowercaseUnderscoreNames = null;
@@ -609,6 +646,7 @@ namespace ServiceStack.Text
             TreatValueAsRefTypes = new HashSet<Type> { typeof(KeyValuePair<,>) };
             PropertyConvention = JsonPropertyConvention.ExactMatch;
             sExcludePropertyReferences = null;
+	        sOnDeserializationError = null;
         }
 
         public static void Reset(Type cachesForType)
@@ -632,11 +670,11 @@ namespace ServiceStack.Text
         /// Provide hint to MonoTouch AOT compiler to pre-compile generic classes for all your DTOs.
         /// Just needs to be called once in a static constructor.
         /// </summary>
-        [MonoTouch.Foundation.Preserve]
+        [Foundation.Preserve]
 		public static void InitForAot() { 
 		}
 
-        [MonoTouch.Foundation.Preserve]
+        [Foundation.Preserve]
         public static void RegisterForAot()
         {
 			RegisterTypeForAot<Poco>();
@@ -685,20 +723,20 @@ namespace ServiceStack.Text
 			RegisterTypeForAot<Guid?>();
         }
 
-		[MonoTouch.Foundation.Preserve]
+		[Foundation.Preserve]
 		public static void RegisterTypeForAot<T>()
 		{
 			AotConfig.RegisterSerializers<T>();
 		}
 
-        [MonoTouch.Foundation.Preserve]
+        [Foundation.Preserve]
         static void RegisterQueryStringWriter()
         {
             var i = 0;
             if (QueryStringWriter<Poco>.WriteFn() != null) i++;
         }
 		        
-        [MonoTouch.Foundation.Preserve]
+        [Foundation.Preserve]
 		internal static int RegisterElement<T, TElement>()
         {
 			var i = 0;
@@ -711,7 +749,7 @@ namespace ServiceStack.Text
 		///<summary>
 		/// Class contains Ahead-of-Time (AOT) explicit class declarations which is used only to workaround "-aot-only" exceptions occured on device only. 
 		/// </summary>			
-		[MonoTouch.Foundation.Preserve(AllMembers=true)]
+		[Foundation.Preserve(AllMembers=true)]
 		internal class AotConfig
 		{
 			internal static JsReader<JsonTypeSerializer> jsonReader;
@@ -846,7 +884,7 @@ namespace ServiceStack.Text
     }
 
 #if MONOTOUCH
-    [MonoTouch.Foundation.Preserve(AllMembers=true)]
+    [Foundation.Preserve(AllMembers=true)]
     internal class Poco
     {
         public string Dummy { get; set; }
@@ -957,6 +995,16 @@ namespace ServiceStack.Text
         }
 
         /// <summary>
+        /// Define custom after serialization hook
+        /// </summary>
+        private static Action<T> onSerializedFn;
+        public static Action<T> OnSerializedFn
+        {
+            get { return onSerializedFn; }
+            set { onSerializedFn = value; }
+        }
+
+        /// <summary>
         /// Define custom deserialization fn for BCL Structs
         /// </summary>
         public static Func<string, T> DeSerializeFn;
@@ -976,6 +1024,18 @@ namespace ServiceStack.Text
         {
             get { return onDeserializedFn; }
             set { onDeserializedFn = value; }
+        }
+
+        public static bool HasDeserialingFn
+        {
+            get { return OnDeserializingFn != null; }
+        }
+
+        private static Func<T, string, object, object> onDeserializingFn;
+        public static Func<T, string, object, object> OnDeserializingFn
+        {
+            get { return onDeserializingFn; }
+            set { onDeserializingFn = value; }
         }
 
         /// <summary>

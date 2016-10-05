@@ -52,12 +52,13 @@ namespace ServiceStack.Text.Common
         private static readonly JsonTypeSerializer Serializer = (JsonTypeSerializer)JsonTypeSerializer.Instance;
 
         internal static object StringToType(
-        Type type,
+        TypeConfig typeConfig,
         string strType,
         EmptyCtorDelegate ctorFn,
         Dictionary<string, TypeAccessor> typeAccessorMap)
         {
             var index = 0;
+            var type = typeConfig.Type;
 
             if (strType == null)
                 return null;
@@ -90,36 +91,35 @@ namespace ServiceStack.Text.Common
                     var explicitTypeName = Serializer.ParseString(propertyValueStr);
                     var explicitType = AssemblyUtils.FindType(explicitTypeName);
 
-                    if (explicitType != null && !explicitType.IsInterface() && !explicitType.IsAbstract())
+                    // let's do the type safety checks first before we even attempt to create
+                    // a type instance
+                    if (explicitType == null || explicitType.IsInterface() || explicitType.IsAbstract())
+                    {
+                        Tracer.Instance.WriteWarning("Could not find type: " + propertyValueStr);
+                    }
+                    else if (!type.IsAssignableFrom(explicitType))
+                    {
+                        Tracer.Instance.WriteWarning("Could not assign type: " + propertyValueStr);
+                    }
+                    else
                     {
                         instance = explicitType.CreateInstance();
                     }
 
-                    if (instance == null)
+                    if (instance != null)
                     {
-                        Tracer.Instance.WriteWarning("Could not find type: " + propertyValueStr);
-                    }
-                    else
-                    {
-                        //If __type info doesn't match, ignore it.
-                        if (!type.InstanceOfType(instance))
+                        var derivedType = instance.GetType();
+                        if (derivedType != type)
                         {
-                            instance = null;
-                        }
-                        else
-                        {
-                            var derivedType = instance.GetType();
-                            if (derivedType != type)
+                            var derivedTypeConfig = new TypeConfig(derivedType);
+                            var map = DeserializeTypeRef.GetTypeAccessorMap(derivedTypeConfig, Serializer);
+                            if (map != null)
                             {
-                                var derivedTypeConfig = new TypeConfig(derivedType);
-                                var map = DeserializeTypeRef.GetTypeAccessorMap(derivedTypeConfig, Serializer);
-                                if (map != null)
-                                {
-                                    typeAccessorMap = map;
-                                }
+                                typeAccessorMap = map;
                             }
                         }
                     }
+
 
                     Serializer.EatItemSeperatorOrMapEndChar(strType, ref index);
                     continue;
@@ -140,6 +140,10 @@ namespace ServiceStack.Text.Common
                             var parseFn = JsonReader.GetParseFn(propType);
 
                             var propertyValue = parseFn(propertyValueStr);
+                            if (typeConfig.OnDeserializing != null)
+                            {
+                                propertyValue = typeConfig.OnDeserializing(instance, propertyName, propertyValue);
+                            }
                             typeAccessor.SetProperty(instance, propertyValue);
                         }
 
@@ -157,8 +161,10 @@ namespace ServiceStack.Text.Common
                     }
                     catch (Exception e)
                     {
+                        if (JsConfig.HasOnDeserializationErrorHandler) JsConfig.OnDeserializationError(instance, propType, propertyName, propertyValueStr, e);
                         if (JsConfig.ThrowOnDeserializationError) throw DeserializeTypeRef.GetSerializationException(propertyName, propertyValueStr, propType, e);
-                        else Tracer.Instance.WriteWarning("WARN: failed to set dynamic property {0} with: {1}", propertyName, propertyValueStr);
+                        
+                        Tracer.Instance.WriteWarning("WARN: failed to set dynamic property {0} with: {1}", propertyName, propertyValueStr);
                     }
                 }
 
@@ -167,13 +173,24 @@ namespace ServiceStack.Text.Common
                     try
                     {
                         var propertyValue = typeAccessor.GetProperty(propertyValueStr);
+                        if (typeConfig.OnDeserializing != null)
+                        {
+                            propertyValue = typeConfig.OnDeserializing(instance, propertyName, propertyValue);
+                        }
                         typeAccessor.SetProperty(instance, propertyValue);
                     }
                     catch (Exception e)
                     {
+                        if (JsConfig.HasOnDeserializationErrorHandler) JsConfig.OnDeserializationError(instance, typeAccessor.PropertyType, propertyName, propertyValueStr, e);
                         if (JsConfig.ThrowOnDeserializationError) throw DeserializeTypeRef.GetSerializationException(propertyName, propertyValueStr, typeAccessor.PropertyType, e);
-                        else Tracer.Instance.WriteWarning("WARN: failed to set property {0} with: {1}", propertyName, propertyValueStr);
+                        
+                        Tracer.Instance.WriteWarning("WARN: failed to set property {0} with: {1}", propertyName, propertyValueStr);
                     }
+                }
+                else if (typeConfig.OnDeserializing != null)
+                {
+                    // the property is not known by the DTO
+                    typeConfig.OnDeserializing(instance, propertyName, propertyValueStr);
                 }
 
                 //Serializer.EatItemSeperatorOrMapEndChar(strType, ref index);

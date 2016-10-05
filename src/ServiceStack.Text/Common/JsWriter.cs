@@ -312,6 +312,9 @@ namespace ServiceStack.Text.Common
             if (type == typeof(decimal) || type == typeof(decimal?))
                 return Serializer.WriteDecimal;
 
+            if (type == typeof(JsonValue))
+                return Serializer.WriteJsonValue;
+
             if (type.IsUnderlyingEnum())
                 return type.FirstAttribute<FlagsAttribute>(false) != null
                     ? (WriteObjectDelegate)Serializer.WriteEnumFlags
@@ -332,22 +335,43 @@ namespace ServiceStack.Text.Common
         internal WriteObjectDelegate GetWriteFn<T>()
         {
             if (typeof(T) == typeof(string))
-            {
                 return Serializer.WriteObjectString;
-            }
+
+            if (typeof(T) == typeof(JsonValue))
+                return Serializer.WriteJsonValue;
+
+            WriteObjectDelegate result = null;
 
             var onSerializingFn = JsConfig<T>.OnSerializingFn;
             if (onSerializingFn != null)
             {
-                return (w, x) => GetCoreWriteFn<T>()(w, onSerializingFn((T)x));
+                // get core delegate first -> better performance
+                var writerFunc = GetCoreWriteFn<T>();
+                result = (w, x) => writerFunc(w, onSerializingFn((T)x));
             }
 
-            if (JsConfig<T>.HasSerializeFn)
+            if (result == null && JsConfig<T>.HasSerializeFn)
             {
-                return JsConfig<T>.WriteFn<TSerializer>;
+                result = JsConfig<T>.WriteFn<TSerializer>;
             }
 
-            return GetCoreWriteFn<T>();
+            if (result == null)
+            {
+                result = GetCoreWriteFn<T>();
+            }
+
+            var onSerializedFn = JsConfig<T>.OnSerializedFn;
+            if (onSerializedFn != null)
+            {
+                var writerFunc = result;
+                result = (w, x) =>
+                {
+                    writerFunc(w, x);
+                    onSerializedFn((T)x);
+                };
+            }
+
+            return result;
         }
 
         private WriteObjectDelegate GetCoreWriteFn<T>()

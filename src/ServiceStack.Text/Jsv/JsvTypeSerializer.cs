@@ -28,6 +28,11 @@ namespace ServiceStack.Text.Jsv
             get { return false; } //Doesn't support null values, treated as "null" string literal
 	    }
 
+        public bool IncludeNullValuesInDictionaries
+	    {
+            get { return false; } //Doesn't support null values, treated as "null" string literal
+	    }
+
         public string TypeAttrInObject
         {
             get { return JsConfig.JsvTypeAttrInObject; }
@@ -57,7 +62,7 @@ namespace ServiceStack.Text.Jsv
 
 		public void WriteRawString(TextWriter writer, string value)
 		{
-			writer.Write(value.EncodeJsv());
+            writer.Write(value.EncodeJsv(true));
 		}
 
 		public void WritePropertyName(TextWriter writer, string value)
@@ -77,7 +82,7 @@ namespace ServiceStack.Text.Jsv
                 if(value is string)
                     WriteString(writer, value as string);
                 else
-				    writer.Write(value.ToString().EncodeJsv());
+                    writer.Write(value.ToString().EncodeJsv(true));
 			}
 		}
 
@@ -92,14 +97,14 @@ namespace ServiceStack.Text.Jsv
                 value = String.Concat(JsWriter.QuoteChar, value, JsWriter.QuoteChar);
 		    else if (JsState.QueryStringMode && !string.IsNullOrEmpty(value) && value.Contains(JsWriter.ItemSeperatorString))
 		        value = String.Concat(JsWriter.QuoteChar, value, JsWriter.QuoteChar);
-            
-			writer.Write(value.EncodeJsv());
+
+            writer.Write(value.EncodeJsv(true));
 		}
 
 	    public void WriteFormattableObjectString(TextWriter writer, object value)
 	    {
 	        var f = (IFormattable)value;
-	        writer.Write(f.ToString(null,CultureInfo.InvariantCulture).EncodeJsv());
+	        writer.Write(f.ToString(null,CultureInfo.InvariantCulture).EncodeJsv(true));
 	    }
 
 	    public void WriteDateTime(TextWriter writer, object oDateTime)
@@ -252,6 +257,12 @@ namespace ServiceStack.Text.Jsv
 			WriteRawString(writer, Convert.ToBase64String(((System.Data.Linq.Binary)linqBinaryValue).ToArray()));
 #endif
         }
+
+	    public void WriteJsonValue(TextWriter writer, object value)
+	    {
+            if (value == null) return;
+            writer.Write(value.ToString().EncodeJsv());
+	    }
 
 		public object EncodeMapKey(object value)
 		{
